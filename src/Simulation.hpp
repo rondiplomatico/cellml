@@ -1,0 +1,6 @@
+
+class Simulation
+{
+ public:
+ private:
+};
