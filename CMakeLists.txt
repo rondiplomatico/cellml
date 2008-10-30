@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 2.6)
+
 PROJECT(bsa)
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${bsa_SOURCE_DIR})

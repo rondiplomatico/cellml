@@ -1,8 +1,10 @@
 #!/bin/sh
 
-ROOT=$OPENCMISS_ROOT/../basicSimulationApplication
+# args:
+#   -DCMAKE_BUILD_TYPE=Debug
+#   -DCMAKE_BUILD_TYPE=Release
 
-export CMAKE_INCLUDE_PATH=$ROOT/CellML-DOM-API/include
-export CMAKE_LIBRARY_PATH=$ROOT/CellML-DOM-API/lib
+export CMAKE_INCLUDE_PATH=$OPENCMISSEXTRAS_ROOT/cellml/x86_64-linux/include
+export CMAKE_LIBRARY_PATH=$OPENCMISSEXTRAS_ROOT/cellml/x86_64-linux/lib
 
-cmake $ROOT $@
+cmake $OPENCMISS_ROOT/cellml/basicSimulationApplication $@
