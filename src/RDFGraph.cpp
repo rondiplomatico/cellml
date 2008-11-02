@@ -1,10 +1,13 @@
 #include <string.h>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include <libxml/xmlreader.h>
 
+#include "SimulationDescription.hpp"
 #include "RDFGraph.hpp"
+#include "namespaces.h"
 
 /* Only need to have one world at a time */
 struct RDFWorld
@@ -46,6 +49,9 @@ static int rdfWorldAccessCount()
 
 /* prototype local methods */
 static char* getXMLFileContentsAsString(const char* uri);
+static int buildSimulationDescription(RDFGraph* graph,void** nodes,int N,
+  void* user_data);
+
 
 RDFGraph::RDFGraph()
 {
@@ -114,6 +120,99 @@ int RDFGraph::buildFromURL(const char* uri)
   return(code);
 }
 
+SimulationDescription* RDFGraph::createSimulationDescription()
+{
+  SimulationDescription* description = new SimulationDescription();
+  // create the SPARQL query to find the simulation
+  std::string query = "prefix cs: <";
+  query += CS_NS;
+  query += ">";
+  query += " select ?parent ?simulation";
+  query += " where {";
+  query += "    ?parent cs:simulation ?simulation";
+  query += "    filter isURI(?parent)";
+  query += " }";
+  std::vector<std::string> names(2);
+  names[0] = "parent";
+  names[1] = "simulation";
+  int code = this->iterateQueryResults(query.c_str(),names,
+    &buildSimulationDescription,(void*)description);
+  if (code != 0)
+  {
+    std::cerr << "RDFGraph::createSimulationDescription(): "
+	      << "error creating simulation description" << std::endl;
+    delete description;
+    description = (SimulationDescription*)NULL;
+  }
+  return(description);
+}
+
+int RDFGraph::iterateQueryResults(const char* query,
+  const std::vector<std::string>& names,QueryIterFunc func,void* user_data)
+{
+  int code = -1;
+  if (this->rdfmodel)
+  {
+    librdf_query* q = librdf_new_query(this->world,"sparql",NULL,
+      (unsigned char*)query,NULL);
+    librdf_query_results* results =
+      librdf_model_query_execute(this->rdfmodel,q);
+    if (results)
+    {
+      code = 0;
+      while(!librdf_query_results_finished(results))
+      {
+	int N = names.size();
+        void** nodes = (void**)malloc(sizeof(void*)*N);
+        int i;
+        for (i=0;i<N;i++) nodes[i] =
+          (void*)librdf_query_results_get_binding_value_by_name(
+            results,names[i].c_str());
+        if (nodes)
+        {
+          code = func(this,nodes,N,user_data);
+          for (i=0;i<N;i++) librdf_free_node((librdf_node*)nodes[i]);
+          free(nodes);
+        }
+        librdf_query_results_next(results);
+        if (code != 0) break;
+      }
+      librdf_free_query_results(results);
+    }
+    librdf_free_query(q);
+  }
+  else
+  {
+    std::cerr << "iterateQueryResults: missing RDF model" << std::endl;
+  }
+  return(code);
+}
+
+bool RDFGraph::nodeIsResource(void* _node)
+{
+  int code = 0;
+  if (_node)
+  {
+    librdf_node* node = (librdf_node*)_node;
+    code = librdf_node_is_resource(node);
+  }
+  if (code) return(true);
+  return(false);
+}
+
+char* RDFGraph::nodeGetURI(void* _node)
+{
+  char* uri = (char*)NULL;
+  if (_node)
+  {
+    librdf_node* node = (librdf_node*)_node;
+    if (librdf_node_is_resource(node)) uri =
+      (char*)librdf_uri_to_string(librdf_node_get_uri(node));
+  }
+  else std::cerr << "rdfGraphGetURI -- Invalid argument(s)" << std::endl;
+  return(uri);
+}
+
 /*
  * Local methods
  */
@@ -147,7 +246,7 @@ static char* getXMLFileContentsAsString(const char* uri)
       while (ret == 1) ret = xmlTextReaderRead(reader);
       if (ret != 0)
       {
-	std::cerr << "getXMLFileContentsAsString" << uri 
+	std::cerr << "getXMLFileContentsAsString" << uri
 		  << ": failed to parse" << std::endl;
       }
       else
@@ -179,8 +278,8 @@ static char* getXMLFileContentsAsString(const char* uri)
     }
     else
     {
-      std::cerr << "getXMLFileContentsAsString - " 
-		<< "Unable to make the XML reader for the uri: " << uri 
+      std::cerr << "getXMLFileContentsAsString - "
+		<< "Unable to make the XML reader for the uri: " << uri
 		<< std::endl;
     }
     /* Shutdown libxml - don't want to as it may be used elsewhere */
@@ -188,4 +287,33 @@ static char* getXMLFileContentsAsString(const char* uri)
   }
   else std::cerr << "Invalid args: getXMLFileContentsAsString" << std::endl;
   return(string);
+}
+
+/** Callback function for the iterate query results method to build a simulation description.
+ * Will only populate the provided simulation description if it is not already a valid description.
+ */
+static int buildSimulationDescription(RDFGraph* graph,void** nodes,
+  int N,void* _ptr)
+{
+  int code = -1;
+  SimulationDescription* description = (SimulationDescription*)_ptr;
+  if (description->isValid())
+  {
+    // already have a valid simulation description, look no further
+    code = 0;
+    std::cout << "Already have a valid simulation description" << std::endl;
+  }
+  else
+  {
+    std::cout << "Setting up simulation description" << std::endl;
+    void* parent = nodes[0];
+    if (graph->nodeIsResource(parent))
+    {
+      char* modelURI = graph->nodeGetURI(parent);
+      description->modelURI(modelURI);
+      free(modelURI);
+      code = 0;
+    }
+  }
+  return(code);
 }

@@ -14,8 +14,13 @@ class CellMLModelDefinition
    * @param url The URL of the source document form which to create the model defintion.
    */
   CellMLModelDefinition(const char* url);
+  /**
+   * Destructor.
+   */
+  ~CellMLModelDefinition();
 
- private:  
+ private:
+  class SimulationDescription* mSimulationDescription;
 };
 
 #endif // _CELLMLMODELDEFINITION_H_
