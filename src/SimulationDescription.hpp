@@ -8,15 +8,18 @@
 class SimulationDescription
 {
  public:
-  /** Check if the simulation description is currently valid.
+  /** 
+   * Check if the simulation description is currently valid.
    * @return true if valid; false otherwise.
    */
   bool isValid();
-  /** Set the URI of the CellML model defined for this simulation.
+  /** 
+   * Set the URI of the CellML model defined for this simulation.
    * @param uri The URI of the CellML model.
    */
   void modelURI(const char* uri);
-  /** Get the URI of the CellML model defined for this simulation.
+  /** 
+   * Get the URI of the CellML model defined for this simulation.
    * @return The URI of the CellML model.
    */
   const char* modelURI();

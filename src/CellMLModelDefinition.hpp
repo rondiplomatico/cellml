@@ -19,6 +19,12 @@ class CellMLModelDefinition
    */
   ~CellMLModelDefinition();
 
+  /**
+   * Instantiate the model definition into simulat-able code.
+   * @return 0 if success; non-zero otherwise.
+   */
+  int instantiate();
+
  private:
   class SimulationDescription* mSimulationDescription;
 };

@@ -20,6 +20,13 @@ int main(int argc,char* argv[])
    * Create the model defintion object
    */
   CellMLModelDefinition* def = new CellMLModelDefinition(inputURI);
+  /*
+   * Instaniate the model definition
+   */
+  if (def->instantiate() != 0)
+  {
+    std::cerr << "Error instantiating the CellML model defintion" << std::endl;
+  }
   delete def;
   free(inputURI);
   return(0);
