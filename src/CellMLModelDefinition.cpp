@@ -20,6 +20,18 @@
 /*
  * Prototype local methods
  */
+static std::wstring formatNumber(const int value)
+{
+  wchar_t valueString[100];
+  swprintf(valueString,100,L"%d",value);
+  return std::wstring(valueString);
+}
+static std::wstring formatNumber(const uint32_t value)
+{
+  wchar_t valueString[100];
+  swprintf(valueString,100,L"%u",value);
+  return std::wstring(valueString);
+}
 static char* getURIFromURIWithFragmentID(const char* uri);
 //static char* wstring2string(const wchar_t* str);
 static wchar_t* string2wstring(const char* str);
@@ -247,7 +259,117 @@ static std::wstring getModelAsCCode(iface::cellml_api::Model* model)
     if (!wcscmp(m,L""))
     {
       std::cout << "whoo hoo!" << std::endl;
-      code = L"Fred";
+      iface::cellml_services::ModelConstraintLevel mcl = 
+	cci->constraintLevel();
+      if (mcl == iface::cellml_services::UNDERCONSTRAINED)
+      {
+	std::cerr << "Model is underconstrained" << std::endl;
+      }
+      else if (mcl == iface::cellml_services::OVERCONSTRAINED)
+      {
+	std::cerr << "Model is overconstrained" << std::endl;
+      }
+      else if (mcl == iface::cellml_services::UNSUITABLY_CONSTRAINED)
+      {
+	std::cerr << "Model is unsuitably constrained" << std::endl;
+      }
+      else
+      {
+	std::cout << "Model is correctly constrained" << std::endl;
+	// create the code in the format we know how to handle
+	code += L"#include <math.h>\n";
+	code += L"#include <stdio.h>\n";
+	/* required functions */
+	code += L"extern double fabs(double x);\n";
+	code += L"extern double acos(double x);\n";
+	code += L"extern double acosh(double x);\n";
+	code += L"extern double atan(double x);\n";
+	code += L"extern double atanh(double x);\n";
+	code += L"extern double asin(double x);\n";
+	code += L"extern double asinh(double x);\n";
+	code += L"extern double acos(double x);\n";
+	code += L"extern double acosh(double x);\n";
+	code += L"extern double asin(double x);\n";
+	code += L"extern double asinh(double x);\n";
+	code += L"extern double atan(double x);\n";
+	code += L"extern double atanh(double x);\n";
+	code += L"extern double ceil(double x);\n";
+	code += L"extern double cos(double x);\n";
+	code += L"extern double cosh(double x);\n";
+	code += L"extern double tan(double x);\n";
+	code += L"extern double tanh(double x);\n";
+	code += L"extern double sin(double x);\n";
+	code += L"extern double sinh(double x);\n";
+	code += L"extern double exp(double x);\n";
+	code += L"extern double floor(double x);\n";
+	code += L"extern double pow(double x, double y);\n";    
+	code += L"extern double factorial(double x);\n";
+	code += L"extern double log(double x);\n";
+	code += L"extern double arbitrary_log(double x, double base);\n";
+	code += L"extern double gcd_pair(double a, double b);\n";
+	code += L"extern double lcm_pair(double a, double b);\n";
+	code += L"extern double gcd_multi(unsigned int size, ...);\n";
+	code += L"extern double lcm_multi(unsigned int size, ...);\n";
+	code += L"extern double multi_min(unsigned int size, ...);\n";
+	code += L"extern double multi_max(unsigned int size, ...);\n";
+	code += L"extern void NR_MINIMISE(double(*func)"
+	  L"(double VOI, double *C, double *R, double *S, double *A),"
+	  L"double VOI, double *C, double *R, double *S, double *A, "
+	  L"double *V);\n";
+	wchar_t* frag = cci->functionsString();
+	code += frag;
+	free(frag);
+
+	// Some helper functions for the simulator
+	code += L"int getNbound() { return ";
+	/* FIXME: is there something better for this? */
+	code += formatNumber(1);
+	code += L"; }\n";
+	code += L"int getNrates() { return ";
+	code += formatNumber(cci->rateIndexCount());
+	code += L"; }\n";
+	code += L"int getNalgebraic() { return ";
+	code += formatNumber(cci->algebraicIndexCount());
+	code += L"; }\n";
+	code += L"int getNconstants() { return ";
+	code += formatNumber(cci->constantIndexCount());
+	code += L"; }\n";
+	
+	// Now start the model code...
+	/* https://svn.physiomeproject.org/svn/physiome/CellML_DOM_API/trunk/interfaces/CCGS.idl for full description */
+  
+	/* initConsts - all variables which aren't state variables but have
+	 *              an initial_value attribute, and any variables & rates
+	 *              which follow.
+	 */
+	frag = cci->initConstsString();
+	code += L"void SetupFixedConstants(double* CONSTANTS,double* RATES,"
+	  "double* STATES)\n{\n";
+	code += frag;
+	code += L"}\n";
+	free(frag);
+
+	/* rates      - All rates which are not static.
+	 */
+	frag = cci->ratesString();
+	code += L"void ComputeRates(double VOI,double* STATES,double* RATES,"
+	  L"double* CONSTANTS,double* ALGEBRAIC)\n{\n";
+	code += frag;
+	code += L"}\n";
+	free(frag);
+
+	/* variables  - All variables not computed by initConsts or rates
+	 *  (i.e., these are not required for the integration of the model and
+	 *   thus only need to be called for output or presentation or similar
+	 *   purposes)
+	 */
+	frag = cci->variablesString();
+	code += L"void EvaluateVariables(double VOI,double* CONSTANTS,"
+	  L"double* RATES, double* STATES, double* ALGEBRAIC)\n{\n";
+	code += frag;
+	code += L"}\n";
+	free(frag);
+      }
     }
     else
     {
