@@ -20,10 +20,17 @@ int main(int argc,char* argv[])
    * Create the model defintion object
    */
   CellMLModelDefinition* def = new CellMLModelDefinition(inputURI);
+  // we don't want to save the generated files (also the default behaviour)
+  def->saveTempFiles(false);
   /*
-   * Instaniate the model definition
+   * Instantiate the model definition
    */
-  if (def->instantiate() != 0)
+  if (def->instantiate() == 0)
+  {
+    std::cout << "Instaniated the model." << std::endl;
+
+  }
+  else
   {
     std::cerr << "Error instantiating the CellML model defintion" << std::endl;
   }

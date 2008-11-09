@@ -4,6 +4,8 @@
 #include <wchar.h>
 #include <iostream>
 #include <vector>
+#include <unistd.h>
+#include <dlfcn.h>
 
 #include <IfaceCellML_APISPEC.hxx>
 #include <IfaceCCGS.hxx>
@@ -37,8 +39,22 @@ static char* getURIFromURIWithFragmentID(const char* uri);
 static wchar_t* string2wstring(const char* str);
 static std::wstring getModelAsCCode(iface::cellml_api::Model* model);
 
+CellMLModelDefinition::CellMLModelDefinition()
+{
+  mCompileCommand = "gcc -fPIC -O3 -shared -x c -o";
+  mTmpDirExists = false;
+  mCodeFileExists = false;
+  mDsoFileExists = false;
+  mSaveTempFiles = false;
+}
+
 CellMLModelDefinition::CellMLModelDefinition(const char* url)
 {
+  mCompileCommand = "gcc -fPIC -O3 -shared -x c -o";
+  mTmpDirExists = false;
+  mCodeFileExists = false;
+  mDsoFileExists = false;
+  mSaveTempFiles = false;
   std::cout << "Creating CellMLModelDefinition from the URL: " 
 	    << url << std::endl;
   // first need to create a RDF graph of the data in the source document
@@ -58,6 +74,30 @@ CellMLModelDefinition::CellMLModelDefinition(const char* url)
 
 CellMLModelDefinition::~CellMLModelDefinition()
 {
+  // delete temporary files
+  if (mSaveTempFiles)
+  {
+    std::cout << "At users request, leaving generated files for model: "
+	      << mSimulationDescription->modelURI() << std::endl;
+  }
+  if (mCodeFileExists)
+  {
+    if (!mSaveTempFiles) unlink(mCodeFileName.c_str());
+    else std::cout << "Leaving generated code file: "
+		   << mCodeFileName.c_str() << std::endl;
+  }
+  if (mDsoFileExists)
+  {
+    if (!mSaveTempFiles) unlink(mDsoFileName.c_str());
+    else std::cout << "Leaving generated shared object file: "
+		   << mDsoFileName.c_str() << std::endl;
+  }
+  if (mTmpDirExists)
+  {
+    if (!mSaveTempFiles) rmdir(mTmpDirName.c_str());
+    else std::cout << "Leaving generated temporary directory: "
+		   << mTmpDirName.c_str() << std::endl;
+  }
   if (mSimulationDescription) delete mSimulationDescription;
 }
 
@@ -83,14 +123,95 @@ int CellMLModelDefinition::instantiate()
   }
   catch (...)
   {
-    std::wcerr << L"Error loading model URL: " << URL.c_str() << std::endl;
+    std::wcerr << L"Error loading moggdel URL: " << URL.c_str() << std::endl;
     return -2;
   }
   std::wstring codeString = getModelAsCCode(model);
   if (codeString.length() > 1)
   {
-    printf("Got the model as C-code:\n#####\n%S\n#####\n",codeString.c_str());
-    code = 0;
+    /* We have code, so dump it out to a temporary file in a temporary
+       directory so we can have the compiled object nice and handy to
+       delete */
+    char templ[64] = "tmp.cellml2code.XXXXXX";
+    mkdtemp(templ);
+    mTmpDirName = templ;
+    mTmpDirExists = true;
+    sprintf(templ,"%s/cellml2code.XXXXXX",mTmpDirName.c_str());
+    int tmpFileDes = mkstemp(templ);
+    mCodeFileName = templ;
+    mCodeFileExists = true;
+    FILE* cFile = fdopen(tmpFileDes,"w");
+    fprintf(cFile,"%S",codeString.c_str());
+    fclose(cFile);
+    char* dso = (char*)malloc(mCodeFileName.length()+10);
+    /* need to make the dso name right so that it'll load */
+    sprintf(dso,"%s%s.so",(templ[0]=='/'?"":"./"),mCodeFileName.c_str());
+    mDsoFileName = dso;
+    free(dso);
+    /* compile the code into a shared object */
+    char* compileCommand =
+      (char*)malloc(mCompileCommand.length()+mDsoFileName.length()+
+	mCodeFileName.length()+3);
+    sprintf(compileCommand,"%s %s %s",mCompileCommand.c_str(),
+      mDsoFileName.c_str(),mCodeFileName.c_str());
+    std::cout << "Compile command: \"" << compileCommand << "\"" << std::endl;
+    if (system(compileCommand) == 0)
+    {
+      mDsoFileExists = true;
+      // now load the DSO back into memory and get the required functions
+      mHandle = dlopen(mDsoFileName.c_str(),RTLD_LOCAL|RTLD_LAZY);
+      if (mHandle)
+      {
+	/* find the required methods */
+	mGetNbound = (int (*)())dlsym(mHandle,"getNbound");
+	if (mGetNbound == NULL) fprintf(stderr,
+	  "Error getting method: getNbound\n");
+	mGetNrates = (int (*)())dlsym(mHandle,"getNrates");
+	if (mGetNrates == NULL) fprintf(stderr,
+	  "Error getting method: getNrates\n");
+	mGetNalgebraic = (int (*)())dlsym(mHandle,"getNalgebraic");
+	if (mGetNalgebraic == NULL) fprintf(stderr,
+	  "Error getting method: getNalgebraic\n");
+	mGetNconstants = (int (*)())dlsym(mHandle,"getNconstants");
+	if (mGetNconstants == NULL) fprintf(stderr,
+	  "Error getting method: getNconstants\n");
+	mSetupFixedConstants = (void (*)(double*,double*,double*))
+	  dlsym(mHandle,"SetupFixedConstants");
+	if (mSetupFixedConstants == NULL) fprintf(stderr,
+	  "Error getting method: SetupFixedConstants\n");
+	mComputeRates = (void (*)(double,double*,double*,double*,double*))
+	  dlsym(mHandle,"ComputeRates");
+	if (mComputeRates == NULL) fprintf(stderr,
+	  "Error getting method: ComputeRates\n");
+	mEvaluateVariables = (void (*)(double,double*,double*,double*,double*))
+	  dlsym(mHandle,"EvaluateVariables");
+	if (mEvaluateVariables == NULL) fprintf(stderr,
+	  "Error getting method: EvaluateVariables\n");
+	if (mGetNbound && mGetNrates && mGetNalgebraic && 
+	  mGetNconstants && mSetupFixedConstants && mComputeRates && 
+	  mEvaluateVariables)
+	{
+	  code = 0;
+	}
+	else
+	{
+	  std::cerr << "Error getting one or more of the required methods."
+		    << std::endl;
+	  code = -6;
+	}
+      }
+      else
+      {
+	fprintf(stderr,"Error opening shared object (%s): %s\n",
+	  mDsoFileName.c_str(),dlerror());
+	code = -5;
+      }
+    }
+    else
+    {
+      std::cerr << "Error compiling the code into a shared object" << std::endl;
+      code = -4;
+    }
   }
   else
   {
