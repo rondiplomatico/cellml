@@ -36,7 +36,7 @@ class CellMLModelDefinition
 
   /**
    * Set the compile command to use to compile the generated code into a dynamic shared object.
-   * @command The compile command.
+   * @param command The compile command.
    */
   void compileCommand(const std::string& command)
   {
@@ -53,7 +53,7 @@ class CellMLModelDefinition
 
   /**
    * Set the save temporary files flag.
-   * @state Should be set to true to save generated temporary files.
+   * @param state Should be set to true to save generated temporary files.
    */
   void saveTempFiles(bool state)
   {
@@ -68,7 +68,35 @@ class CellMLModelDefinition
     return mSaveTempFiles;
   }
 
+  uint32_t nBound;
+  uint32_t nRates;
+  uint32_t nAlgebraic;
+  uint32_t nConstants;
+
+  // loaded from the generated and compiled DSO
+  /* Initialise all variables which aren't state variables but have an
+   * initial_value attribute, and any variables & rates which follow.
+   */
+  void (*SetupFixedConstants)(double* CONSTANTS,double* RATES,double* STATES);
+  /* Compute all rates which are not static
+   */
+  void (*ComputeRates)(double VOI,double* STATES,double* RATES,
+    double* CONSTANTS,double* ALGEBRAIC);
+  /* Compute all variables not computed by initConsts or rates
+   *  (i.e., these are not required for the integration of the model and
+   *   thus only need to be called for output or presentation or similar
+   *   purposes)
+   */
+  void (*EvaluateVariables)(double VOI,double* CONSTANTS,double* RATES,
+    double* STATES,double* ALGEBRAIC);
+
  private:
+  /**
+   * Generate C code for the given CellML model.
+   * @param model The CellML model for which to generate C code.
+   * @return The generated code, if successfull; and empty string otherwise.
+   */
+  std::wstring getModelAsCCode(void* model);
   class SimulationDescription* mSimulationDescription;
   std::string mTmpDirName;
   bool mTmpDirExists;
@@ -78,27 +106,7 @@ class CellMLModelDefinition
   bool mDsoFileExists;
   std::string mCompileCommand;
   bool mSaveTempFiles;
-  // loaded from the generated and compiled DSO
   void* mHandle;
-  int (*mGetNbound)();
-  int (*mGetNrates)();
-  int (*mGetNalgebraic)();
-  int (*mGetNconstants)();
-  /* Initialise all variables which aren't state variables but have an
-   * initial_value attribute, and any variables & rates which follow.
-   */
-  void (*mSetupFixedConstants)(double* CONSTANTS,double* RATES,double* STATES);
-  /* Compute all rates which are not static
-   */
-  void (*mComputeRates)(double VOI,double* STATES,double* RATES,
-    double* CONSTANTS,double* ALGEBRAIC);
-  /* Compute all variables not computed by initConsts or rates
-   *  (i.e., these are not required for the integration of the model and
-   *   thus only need to be called for output or presentation or similar
-   *   purposes)
-   */
-  void (*mEvaluateVariables)(double VOI,double* CONSTANTS,double* RATES,
-    double* STATES,double* ALGEBRAIC);
 };
 
 #endif // _CELLMLMODELDEFINITION_H_

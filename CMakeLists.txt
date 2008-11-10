@@ -25,6 +25,7 @@ SET(bsa_SRCS
   src/CellMLModelDefinition.cpp
   src/RDFGraph.cpp
   src/SimulationDescription.cpp
+  src/ccgs_required_functions.cpp
 )
 
 ADD_EXECUTABLE(bsa ${bsa_SRCS})

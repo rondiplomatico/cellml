@@ -22,7 +22,7 @@
 /*
  * Prototype local methods
  */
-static std::wstring formatNumber(const int value)
+/*static std::wstring formatNumber(const int value)
 {
   wchar_t valueString[100];
   swprintf(valueString,100,L"%d",value);
@@ -33,11 +33,10 @@ static std::wstring formatNumber(const uint32_t value)
   wchar_t valueString[100];
   swprintf(valueString,100,L"%u",value);
   return std::wstring(valueString);
-}
+}*/
 static char* getURIFromURIWithFragmentID(const char* uri);
 //static char* wstring2string(const wchar_t* str);
 static wchar_t* string2wstring(const char* str);
-static std::wstring getModelAsCCode(iface::cellml_api::Model* model);
 
 CellMLModelDefinition::CellMLModelDefinition()
 {
@@ -46,6 +45,10 @@ CellMLModelDefinition::CellMLModelDefinition()
   mCodeFileExists = false;
   mDsoFileExists = false;
   mSaveTempFiles = false;
+  nBound = -1;
+  nRates = -1;
+  nAlgebraic = -1;
+  nConstants = -1;
 }
 
 CellMLModelDefinition::CellMLModelDefinition(const char* url)
@@ -55,6 +58,10 @@ CellMLModelDefinition::CellMLModelDefinition(const char* url)
   mCodeFileExists = false;
   mDsoFileExists = false;
   mSaveTempFiles = false;
+  nBound = -1;
+  nRates = -1;
+  nAlgebraic = -1;
+  nConstants = -1;
   std::cout << "Creating CellMLModelDefinition from the URL: " 
 	    << url << std::endl;
   // first need to create a RDF graph of the data in the source document
@@ -126,7 +133,7 @@ int CellMLModelDefinition::instantiate()
     std::wcerr << L"Error loading moggdel URL: " << URL.c_str() << std::endl;
     return -2;
   }
-  std::wstring codeString = getModelAsCCode(model);
+  std::wstring codeString = getModelAsCCode((void*)model);
   if (codeString.length() > 1)
   {
     /* We have code, so dump it out to a temporary file in a temporary
@@ -163,33 +170,19 @@ int CellMLModelDefinition::instantiate()
       if (mHandle)
       {
 	/* find the required methods */
-	mGetNbound = (int (*)())dlsym(mHandle,"getNbound");
-	if (mGetNbound == NULL) fprintf(stderr,
-	  "Error getting method: getNbound\n");
-	mGetNrates = (int (*)())dlsym(mHandle,"getNrates");
-	if (mGetNrates == NULL) fprintf(stderr,
-	  "Error getting method: getNrates\n");
-	mGetNalgebraic = (int (*)())dlsym(mHandle,"getNalgebraic");
-	if (mGetNalgebraic == NULL) fprintf(stderr,
-	  "Error getting method: getNalgebraic\n");
-	mGetNconstants = (int (*)())dlsym(mHandle,"getNconstants");
-	if (mGetNconstants == NULL) fprintf(stderr,
-	  "Error getting method: getNconstants\n");
-	mSetupFixedConstants = (void (*)(double*,double*,double*))
+	SetupFixedConstants = (void (*)(double*,double*,double*))
 	  dlsym(mHandle,"SetupFixedConstants");
-	if (mSetupFixedConstants == NULL) fprintf(stderr,
+	if (SetupFixedConstants == NULL) fprintf(stderr,
 	  "Error getting method: SetupFixedConstants\n");
-	mComputeRates = (void (*)(double,double*,double*,double*,double*))
+	ComputeRates = (void (*)(double,double*,double*,double*,double*))
 	  dlsym(mHandle,"ComputeRates");
-	if (mComputeRates == NULL) fprintf(stderr,
+	if (ComputeRates == NULL) fprintf(stderr,
 	  "Error getting method: ComputeRates\n");
-	mEvaluateVariables = (void (*)(double,double*,double*,double*,double*))
+	EvaluateVariables = (void (*)(double,double*,double*,double*,double*))
 	  dlsym(mHandle,"EvaluateVariables");
-	if (mEvaluateVariables == NULL) fprintf(stderr,
+	if (EvaluateVariables == NULL) fprintf(stderr,
 	  "Error getting method: EvaluateVariables\n");
-	if (mGetNbound && mGetNrates && mGetNalgebraic && 
-	  mGetNconstants && mSetupFixedConstants && mComputeRates && 
-	  mEvaluateVariables)
+	if (SetupFixedConstants && ComputeRates && EvaluateVariables)
 	{
 	  code = 0;
 	}
@@ -281,8 +274,10 @@ wchar_t* string2wstring(const char* str)
   return((wchar_t*)NULL);
 }
 
-static std::wstring getModelAsCCode(iface::cellml_api::Model* model)
+std::wstring 
+CellMLModelDefinition::getModelAsCCode(void* _ptr)
 {
+  iface::cellml_api::Model* model = (iface::cellml_api::Model*)_ptr;
   std::wstring code;
   RETURN_INTO_OBJREF(cgb,iface::cellml_services::CodeGeneratorBootstrap,
     CreateCodeGeneratorBootstrap());
@@ -441,22 +436,12 @@ static std::wstring getModelAsCCode(iface::cellml_api::Model* model)
 	code += frag;
 	free(frag);
 
-	// Some helper functions for the simulator
-	code += L"int getNbound() { return ";
-	/* FIXME: is there something better for this? */
-	code += formatNumber(1);
-	code += L"; }\n";
-	code += L"int getNrates() { return ";
-	code += formatNumber(cci->rateIndexCount());
-	code += L"; }\n";
-	code += L"int getNalgebraic() { return ";
-	code += formatNumber(cci->algebraicIndexCount());
-	code += L"; }\n";
-	code += L"int getNconstants() { return ";
-	code += formatNumber(cci->constantIndexCount());
-	code += L"; }\n";
+	nBound = 1;
+	nRates = cci->rateIndexCount();
+	nAlgebraic = cci->algebraicIndexCount();
+	nConstants = cci->constantIndexCount();
 	
-	// Now start the model code...
+	// start the model code...
 	/* https://svn.physiomeproject.org/svn/physiome/CellML_DOM_API/trunk/interfaces/CCGS.idl for full description */
   
 	/* initConsts - all variables which aren't state variables but have
