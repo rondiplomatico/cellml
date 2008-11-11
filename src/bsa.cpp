@@ -60,6 +60,7 @@ int main(int argc,char* argv[])
       {
 	// integrate from time to te
 	def->ComputeRates(time,states,rates,constants,algebraic);
+	for (i=0;i<def->nRates;i++) states[i] += rates[i] * dt;
 	if (fabs(te-time) < 1.0e-10) break;
 	time += dt;
 	if (time > te) time = te;
