@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 2.6)
 
 PROJECT(bsa)
 
+ENABLE_LANGUAGE(Fortran)
+
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${bsa_SOURCE_DIR})
 
 FIND_PACKAGE(CellML REQUIRED)
@@ -28,6 +30,10 @@ SET(bsa_SRCS
   src/ccgs_required_functions.cpp
 )
 
+SET(bsaF_SRCS
+  src/bsa.f90
+)
+
 ADD_EXECUTABLE(bsa ${bsa_SRCS})
 TARGET_LINK_LIBRARIES(bsa
   ${CELLML_LIBRARIES}
@@ -36,3 +42,5 @@ TARGET_LINK_LIBRARIES(bsa
   ${LIBXML2_LIBRARIES}
   -ldl -lm
 )
+
+ADD_EXECUTABLE(bsaF ${bsaF_SRCS})
