@@ -7,6 +7,8 @@ extern "C"
 #endif
 
   int c_library_function(int exp1[100],float alloc[],int len_alloc);
+  void* createBob();
+  void bobPrintName(void* _ptr);
 
 #ifdef __cplusplus
 } /* extern C */
