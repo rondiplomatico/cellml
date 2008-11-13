@@ -11,6 +11,7 @@ FIND_PACKAGE(CCGS REQUIRED)
 FIND_PACKAGE(Redland REQUIRED)
 FIND_PACKAGE(LibXml2 REQUIRED QUIET)
 
+# Probably better to not do this as it probably overrides and external value?
 SET (CMAKE_CXX_FLAGS "-Wall -Werror ${LIBXML2_DEFINITIONS} ${Redland_DEFINITIONS}")
 
 INCLUDE_DIRECTORIES(
@@ -33,6 +34,11 @@ SET(bsaF_SRCS
   src/cellml_model_definition.f90
 )
 
+SET(testF2C_SRCS
+  src/testF2C.f90
+  src/testF2C.cpp
+)
+
 ADD_EXECUTABLE(bsa ${bsa_SRCS})
 TARGET_LINK_LIBRARIES(bsa
   ${CELLML_LIBRARIES}
@@ -47,3 +53,9 @@ TARGET_LINK_LIBRARIES(bsaF
   -lstdc++
 )
 SET_TARGET_PROPERTIES(bsaF PROPERTIES LINKER_LANGUAGE Fortran)
+
+ADD_EXECUTABLE(testF2C ${testF2C_SRCS})
+TARGET_LINK_LIBRARIES(testF2C
+  -lstdc++
+)
+SET_TARGET_PROPERTIES(testF2C PROPERTIES LINKER_LANGUAGE Fortran)
