@@ -68,6 +68,15 @@ class CellMLModelDefinition
     return mSaveTempFiles;
   }
 
+  /**
+   * Check model instantiation.
+   * @return True if the model is instantiated; false otherwise.
+   */
+  bool instantiated()
+  {
+    return mInstantiated;
+  }
+
   uint32_t nBound;
   uint32_t nRates;
   uint32_t nAlgebraic;
@@ -107,6 +116,7 @@ class CellMLModelDefinition
   std::string mCompileCommand;
   bool mSaveTempFiles;
   void* mHandle;
+  bool mInstantiated;
 };
 
 #endif // _CELLMLMODELDEFINITION_H_

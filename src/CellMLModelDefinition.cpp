@@ -45,6 +45,7 @@ CellMLModelDefinition::CellMLModelDefinition()
   mCodeFileExists = false;
   mDsoFileExists = false;
   mSaveTempFiles = false;
+  mInstantiated = false;
   nBound = -1;
   nRates = -1;
   nAlgebraic = -1;
@@ -58,6 +59,7 @@ CellMLModelDefinition::CellMLModelDefinition(const char* url)
   mCodeFileExists = false;
   mDsoFileExists = false;
   mSaveTempFiles = false;
+  mInstantiated = false;
   nBound = -1;
   nRates = -1;
   nAlgebraic = -1;
@@ -184,6 +186,7 @@ int CellMLModelDefinition::instantiate()
 	  "Error getting method: EvaluateVariables\n");
 	if (SetupFixedConstants && ComputeRates && EvaluateVariables)
 	{
+	  mInstantiated = true;
 	  code = 0;
 	}
 	else

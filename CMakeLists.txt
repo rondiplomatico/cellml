@@ -32,6 +32,10 @@ SET(bsaF_SRCS
   src/bsa.f90
   src/CellMLModelDefinitionF.cpp
   src/cellml_model_definition.f90
+  src/CellMLModelDefinition.cpp
+  src/RDFGraph.cpp
+  src/SimulationDescription.cpp
+  src/ccgs_required_functions.cpp
 )
 
 SET(testF2C_SRCS
@@ -50,6 +54,11 @@ TARGET_LINK_LIBRARIES(bsa
 
 ADD_EXECUTABLE(bsaF ${bsaF_SRCS})
 TARGET_LINK_LIBRARIES(bsaF
+  ${CELLML_LIBRARIES}
+  ${CCGS_LIBRARIES}
+  ${Redland_LIBRARIES}
+  ${LIBXML2_LIBRARIES}
+  -ldl -lm
   -lstdc++
 )
 SET_TARGET_PROPERTIES(bsaF PROPERTIES LINKER_LANGUAGE Fortran)
