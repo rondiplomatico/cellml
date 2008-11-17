@@ -132,7 +132,7 @@ int CellMLModelDefinition::instantiate()
   }
   catch (...)
   {
-    std::wcerr << L"Error loading moggdel URL: " << URL.c_str() << std::endl;
+    std::wcerr << L"Error loading model URL: " << URL.c_str() << std::endl;
     return -2;
   }
   std::wstring codeString = getModelAsCCode((void*)model);
