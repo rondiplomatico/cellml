@@ -20,6 +20,15 @@ INCLUDE_DIRECTORIES(
   ${LIBXML2_INCLUDE_DIR}
 )
 
+SET(liboccellml_SRCS
+  src/CellMLModelDefinitionF.cpp
+  src/cellml_model_definition.f90
+  src/CellMLModelDefinition.cpp
+  src/RDFGraph.cpp
+  src/SimulationDescription.cpp
+  src/ccgs_required_functions.cpp
+)
+
 SET(bsa_SRCS
   src/bsa.cpp
   src/CellMLModelDefinition.cpp
@@ -30,12 +39,7 @@ SET(bsa_SRCS
 
 SET(bsaF_SRCS
   src/bsa.f90
-  src/CellMLModelDefinitionF.cpp
-  src/cellml_model_definition.f90
-  src/CellMLModelDefinition.cpp
-  src/RDFGraph.cpp
-  src/SimulationDescription.cpp
-  src/ccgs_required_functions.cpp
+  ${liboccellml_SRCS}
 )
 
 SET(testF2C_SRCS
@@ -68,3 +72,5 @@ TARGET_LINK_LIBRARIES(testF2C
   -lstdc++
 )
 SET_TARGET_PROPERTIES(testF2C PROPERTIES LINKER_LANGUAGE Fortran)
+
+ADD_LIBRARY(occellml STATIC ${liboccellml_SRCS})
